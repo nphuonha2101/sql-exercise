@@ -99,7 +99,7 @@ CREATE TABLE CT_PH(
 	FOREIGN KEY (MaNGK) REFERENCES NGK (MaNGK),
 	FOREIGN KEY (SoPH) REFERENCES PHIEUHEN (SoPH)
 );
-CREATE TABLE PHIEUTRANNO(
+CREATE TABLE PHIEUTRANO(
 	SoPTN varchar(8) ,
 	NgayTra date ,
 	SoTienTra numeric,
@@ -303,51 +303,51 @@ VALUES ('PTN05', '01-07-2010', '1080000', 'HD03');
 
 
 -- 1. Liet ke cac NGK va cac loai NGK tuong ung
-select * from ngk inner join loaingk on ngk.maloaingk = loaingk.maloaingk;
+select * from NGK inner join LoaiNGK on NGK.MaLoaiNGK = LoaiNGK.MaLoaiNGK;
 
 -- 2. Cho biet thong tin ve nha cung cap o TP.HCM
-select * from nhacc  where diachincc like '%TpHCM%';
+select * from NHACC  where DiaChiNCC like '%TpHCM%';
 
 -- 3. Liet ke cac hoa don mua hang trong thang 5/2010
-select * from hoadon where DATEPART(month, ngaylaphd) = 5 and DATEPART(year, ngaylaphoadon) = 2010;
+select * from HOADON where DATEPART(month, NgayLapHD) = 5 and DATEPART(year, NgayLapHD) = 2010;
 
 -- 4. Cho biet ten nha cung cap co NGK 'Coca Cola)
 select * 
-from nhacc inner join loaingk 
-on nhacc.mancc = loaingk.mancc
-inner join ngk on ngk.maloaingk = loaingk.maloaingk
-where ngk.tenngk = 'Coca Cola';
+from NHACC inner join LoaiNGK 
+on NHACC.MaNCC = LoaiNGK.MaNCC
+inner join NGK on NGK.MaLoaiNGK = LoaiNGK.MaLoaiNGK
+where NGK.TenNGK = 'Coca Cola';
 
 -- 5. Cho biet ten nha cung cap co nhieu loai ngk nhat
-select nhacc.tenncc, count(loaingk.maloaingk)
-from nhacc inner join loaingk 
-on nhacc.mancc = loaingk.mancc
-group by nhacc.tenncc, loaingk.mancc
-having count(loaingk.maloaingk) >= all (select count(maloaingk)
-																		from loaingk
-																		group by mancc);
+select NHACC.TenNCC, count(LoaiNGK.MaLoaiNGK) as SoLoaiNGK
+from NHACC inner join LoaiNGK 
+on NHACC.MaNCC = LoaiNGK.MaNCC
+group by NHACC.TenNCC, LoaiNGK.MaNCC
+having count(LoaiNGK.MaLoaiNGK) >= all (select count(MaLoaiNGK)
+										from LoaiNGK
+										group by MaNCC);
 
 -- 6. Cho biet ten nha cc khong co kha nang cung cap ngk la pepsi
-select distinct nhacc.tenncc
-from nhacc inner join loaingk
-on nhacc.mancc = loaingk.mancc
-inner join ngk on ngk.maloaingk = loaingk.maloaingk
-where nhacc.mancc not in (select loaingk.MaNCC
-												from loaingk inner join ngk	
-												on loaingk.maloaingk = ngk.maloaingk
-												where ngk.tenngk = 'Pepsi');
+select distinct NHACC.TenNCC
+from NHACC inner join LoaiNGK
+on NHACC.MaNCC = LoaiNGK.MaNCC
+inner join NGK on NGK.MaLoaiNGK = LoaiNGK.MaLoaiNGK
+where NHACC.MaNCC not in (select LoaiNGK.MaNCC
+						  from LoaiNGK inner join NGK	
+						  on LoaiNGK.MaLoaiNGK = NGK.MaLoaiNGK
+						  where NGK.TenNGK = 'Pepsi');
 
 -- 7. Hien thi thong tin cua ngk chua ban duoc
 select * 
-from ngk 
-where mangk not in (select mangk
-									from ct_ddh);
+from NGK 
+where MaNGK not in (select MaNGK
+					from CT_DDH);
 
 -- 8. Hien thi ten va so luong ban cua tung ngk
-select ngk.tenngk, sum(ct_ddh.sldat) as sl_dat
-from ngk inner join ct_ddh
-on ngk.mangk = ct_ddh.mangk
-group by  ngk.tenngk;
+select NGK.TenNGK, sum(CT_DDH.SLDat) as SL_Dat
+from NGK inner join CT_DDH
+on NGK.MaNGK = CT_DDH.MaNGK
+group by  NGK.TenNGK;
 
 -- 9. Hien thi ten va so luong cua ngk nhap ve
 select ngk.tenngk, count(ct_pgh.slgiao)
@@ -357,12 +357,18 @@ group by ngk.tenngk;
 
 -- 10. Hien thi don dat hang da dat ngk voi so luong nhieu nhat so voi cac DDH khac co dat ngk do.
 -- Thong tin hien thi: SoDDH, MaNGK, SLDatNhieuNhat
-select soddh, mangk, sum(sldat) as SLDatNhieuNhat
+--select soddh, mangk, sum(sldat) as SLDatNhieuNhat
+--from ct_ddh
+--group by soddh, mangk
+--having sum(sldat) >= all (select sum(sldat)
+--											from ct_ddh
+--											group by mangk);
+
+select * 
 from ct_ddh
-group by soddh, mangk
-having sum(sldat) >= all (select sum(sldat)
-											from ct_ddh
-											group by mangk);
+where slDat in (select max(sldat) as SLDatNhieuNhat
+from ct_ddh
+group by mangk);
 
 -- 11. Hien thi cac NGK khong duoc nhap trong thang 1 nam 2010
 select  NGK.* 
@@ -401,3 +407,173 @@ having count(HOADON.SoHD) >= all (select count(SoHD)
 									group by MaKH);
 
 
+-- 16. Tinh doanh thu nam 2010 cua cua hang
+select sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) as DoanhThu2010
+from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+where DATEPART(year, HOADON.NgayLapHD) = 2010;
+
+-- 17. Liet ke 5 loai NGK ban chay nhat doanh thu (05/2010)
+select top 5 NGK.MaLoaiNGK
+from CT_HOADON inner join NGK on CT_HOADON.MaNGK = NGK.MaNGK
+inner join HOADON on HOADON.SoHD = CT_HOADON.SoHD
+group by NGK.MaLoaiNGK
+having sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) >= all (
+												select sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan)
+												from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+												where DATEPART(month, HOADON.NgayLapHD) = 5 and DATEPART(year, HOADON.NgayLapHD) = 2010
+												group by CT_HOADON.MaNGK
+												)
+
+;
+-- 18. Liet ke thong tin ban NGK cua thang 05/2010 maNGK, tenNGK, SLBAN
+select NGK.MaNGK, NGK.TenNGK, CT_HOADON.SLKHMua as SoLuongBan
+from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+inner join NGK on CT_HOADON.MaNGK = NGK.MaNGK
+where DATEPART(month, HOADON.NgayLapHD) = 5 and DATEPART(year, HOADON.NgayLapHD) = 2010;
+
+-- 19. Liet ke thong tin cua NGK co nhieu nguoi mua nhat
+
+select NGK.*, CT_HOADON.SLKHMua
+from NGK inner join CT_HOADON on NGK.MaNGK = CT_HOADON.MaNGK
+where CT_HOADON.SLKHMua >= all (
+								select SLKHMua
+								from CT_HOADON
+								);
+
+-- 20. Hien thi lan nhap hang gan nhat cua cua hang
+select CT_PGH.*
+from PHIEUGH inner join CT_PGH on PHIEUGH.SoPGH = CT_PGH.SoPGH
+where PHIEUGH.NgayGH = (select max(PHIEUGH.NgayGH)
+								from PHIEUGH inner join CT_PGH on PHIEUGH.SoPGH = CT_PGH.SoPGH);
+
+-- 21. Cho biet so lan mua hang cua khach co ma la KH01
+select count(MaKH)
+from HOADON
+where MaKH = 'KH01';
+
+-- 22. Cho biet tong tien cua tung hoa don
+select SoHD, sum(SLKHMua * DGBan) as TongTien
+from CT_HOADON
+group by SoHD;
+
+-- 23. Cho biet danh sach cac hoa don gom SoHD, NgaylapHD, MaKH, TenKH va tong gia tri tung hoa don
+-- Danh sach xep tang dan theo ngay va giam dan theo tong gia tri hoa don
+select HOADON.SoHD, HOADON.NgayLapHD, KH.MaKH, KH.TenKH, sum(SLKHMua * DGBan) as TongTien
+from HOADON inner join KH on HOADON.MaKH = KH.MaKH
+inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+group by HOADON.SoHD, HOADON.NgayLapHD, KH.MaKH, KH.TenKH
+order by HOADON.NgayLapHD asc , TongTien desc;
+
+--24. Cho biet cac hoa don co tong gia tri lon hon tong gia tri trung binh cua cac hoa don trong ngay 18/06/2010
+select HOADON.SoHD, sum(SLKHMua * DGBan) as TongTien
+from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+group by HOADON.SoHD
+having sum(SLKHMua * DGBan) >= all (select sum(SLKHMua * DGBan) / count(HOADON.SoHD)
+									from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+									where NgayLapHD = '18-06-2010')
+
+-- 25. Cho biet luong NGK tieu thu theo tung thang cua nam 2010
+select DATEPART(month, HOADON.NgayLapHD) as Thang, sum(CT_HOADON.SLKHMua) as LuongNGK
+from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+where DATEPART(year, HOADON.NgayLapHD) = 2010
+group by DATEPART(month, HOADON.NgayLapHD);
+
+-- 26. Dua ra danh sach NGK khong ban duoc trong thang 9 nam 2010
+select * 
+from NGK
+where MaNGK not in (select CT_HOADON.MaNGK
+					from CT_HOADON inner join HOADON on HOADON.SoHD = CT_HOADON.SoHD
+					where DATEPART(month, HOADON.NgayLapHD) = 9 and DATEPART(month, HOADON.NgayLapHD) = 2010);
+
+-- 27. Dua ra danh KH co dia chi o TPHCM va tung mua NGK trong thang 9 nam 2010
+select KH.*
+from KH inner join HOADON on KH.MaKH = HOADON.MaKH
+where KH.DCKH like '%TpHCM%' and DATEPART(month, HOADON.NgayLapHD) = 9 and DATEPART(year, HOADON.NgayLapHD) = 2010;
+
+-- 28. Dua ra so luong tuong ung cua tung NGK trong thang 10 nam 2010
+select CT_HOADON.MaNGK, sum(CT_HOADON.SLKHMua) as SoLuong
+from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+where  DATEPART(month, HOADON.NgayLapHD) = 10 and DATEPART(year, HOADON.NgayLapHD) = 2010
+group by CT_HOADON.MaNGK;
+
+-- 29. Hien thi thong tin cua khach hang da tung mua va so luong NGK tai cua hang
+select KH.*, sum(CT_HOADON.SLKHMua) as SLDaMua
+from HOADON inner join KH on HOADON.MaKH = KH.MaKH
+inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH;
+
+-- 30. Cho biet trong nam 2010, KH nao da mua no nhieu nhat
+select KH.*, sum(PHIEUTRANO.SoTienTra)
+from PHIEUTRANO inner join HOADON on PHIEUTRANO.SoHD = HOADON.SoHD
+inner join KH on HOADON.MaKH = KH.MaKH 
+where DATEPART(year, HOADON.NgayLapHD) = 2010
+group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH
+having sum(PHIEUTRANO.SoTienTra) >= all (select sum(PHIEUTRANO.SoTienTra)
+										from PHIEUTRANO inner join HOADON on PHIEUTRANO.SoHD = HOADON.SoHD
+										inner join KH on HOADON.MaKH = KH.MaKH 
+										where DATEPART(year, HOADON.NgayLapHD) = 2010
+										group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH);
+
+-- 31. Co bao nhieu hoa don chua thanh toan het so tien
+
+
+-- 32. Liet ke cac hoa don cung ten cua kh tuong ung da mua ngk va thanh toan tien 1 lan (ko co phieu tra no)
+select * 
+from KH inner join HOADON on KH.MaKH = HOADON.MaKH
+where KH.MaKH not in (select HOADON.MaKH
+					from PHIEUTRANO inner join HOADON on PHIEUTRANO.SoHD = HOADON.SoHD);
+
+-- 33. Thong ke cho biet thong tin dat hang cua CH trong nam 2010: MaNGK, TenNGK, TongSLDat
+select NGK.MaNGK, NGK.TenNGK, sum(CT_PGH.SLGiao) as TongSLDat
+from NGK inner join CT_PGH on NGK.MaNGK = CT_PGH.MaNGK
+inner join PHIEUGH on CT_PGH.SoPGH = PHIEUGH.SoPGH
+where DATEPART(year, PHIEUGH.NgayGH) = 2010
+group by NGK.MaNGK, NGK.TenNGK;
+
+-- 34. Liet ke danh sach KH da mua NGK voi tong so tien tuong ung trong nam 2010
+select KH.*, sum(CT_HOADON.DGBan * CT_HOADON.SLKHMua) as TongTien 
+from KH inner join HOADON on KH.MaKH = HOADON.MaKH
+inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+where DATEPART(year, HOADON.NgayLapHD) = 2010
+group by KH.MaKH, KH.TenKH, KH.DCKH, KH.DTKH;
+
+
+-- VIEWs
+
+create
+
+
+
+
+-- PROCEDUREs
+-- 1. Liet ke tat ca nuoc giai khat va loai ngk tuong ung
+use TH02
+go
+create proc sp_ngk
+as 
+select * from NGK inner join LoaiNGK on NGK.MaLoaiNGK = LoaiNGK.MaLoaiNGK
+go;
+
+exec sp_ngk;
+
+-- 2. Cho biet thong tin ve ncc voi ma ncc la tham so dau vao
+use TH02
+go 
+create proc sp_ncc @NCC VARCHAR(255)
+as 
+select * from NHACC WHERE NHACC.MaNCC = @NCC
+go;
+
+exec sp_ncc 'NC1';
+
+-- 3. Hien thi thong tin nuoc giai khat chua ban duoc
+use TH02 
+go 
+create proc sp_ton 
+as 
+select * from NGK 
+where MaNGK not in (select MaNGK
+					from CT_HOADON)
+go;
+
+exec sp_ton;
