@@ -515,6 +515,14 @@ having sum(PHIEUTRANO.SoTienTra) >= all (select sum(PHIEUTRANO.SoTienTra)
 										group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH);
 
 -- 31. Co bao nhieu hoa don chua thanh toan het so tien
+select count(HOADON.SoHD)
+from HOADON
+where  HOADON.SoHD in (select HOADON.SoHD 
+					   from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+					   inner join PHIEUTRANO on HOADON.SoHD = PHIEUTRANO.SoHD
+					   group by HOADON.SoHD
+					   having sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) < sum (PHIEUTRANO.SoTienTra)
+					   );
 
 
 -- 32. Liet ke cac hoa don cung ten cua kh tuong ung da mua ngk va thanh toan tien 1 lan (ko co phieu tra no)
@@ -539,9 +547,35 @@ group by KH.MaKH, KH.TenKH, KH.DCKH, KH.DTKH;
 
 
 -- VIEWs
+-- 1. Tao view V_NGK tong hop du lieu ve tung NGK da duoc ban. Cau  truc View bao gom cac thuoc tinh: MaNGK, TenNGK, Quycach, SoLuongBan, TongTien = DonGiaBan * So luong
 
-create
+create view V_NGK 
+as 
+select NGK.MaNGK, NGK.TenNGK, sum(CT_HOADON.SLKHMua) as SoLuongBan, sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) as TongTien
+from NGK inner join CT_HOADON on NGK.MaNGK = CT_HOADON.MaNGK
+inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+group by NGK.MaNGK, NGK.TenNGK;
 
+-- 2. Tao view V_khachhang tong hop du lieu ve 10 khach hang lon. Danh sach gom MaKH, TenKH, DTKH, TongTien = Soluong * DGBan
+
+create view V_khachhang 
+as 
+select KH.MaKH, KH.TenKH, KH.DTKH, sum(CT_HOADON.DGBan * CT_HOADON.SLKHMua) as TongTien
+from KH inner join HOADON on KH.MaKH = HOADON.MaKH
+inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+group by KH.MaKH, KH.TenKH, KH.DTKH;
+
+-- 3. Tao view V_trano cho biet danh sach khach hang da thu hon 2 lan nhung chua tra het tien. Danh sach gom: MaKH, TenKH, DTKH, Tong tien phai tra, Tong tien da tra, So lan thu tien
+
+
+-- 4. Tao view V_ton cho biet danh sach nuoc giai khat chua ban duoc
+
+create view v_ton
+as
+select NGK.* 
+from NGK 
+where NGK.MaNGK not in  (select MaNGK
+					     from CT_HOADON);
 
 
 
@@ -577,3 +611,33 @@ where MaNGK not in (select MaNGK
 go;
 
 exec sp_ton;
+
+-- 4. Tinh tong doanh thu cua nam voi nam la tham so dau vao va doanh thu la tham so dau  ra
+use TH02
+go
+create pro sp_dt @nam int, @doanhthu int output
+as 
+select @doanhthu = (select sum(CT_HOADON.SLKHMua * CT_HOADON.SLKHMua) 
+					from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+					where DATEPART(year, HOADON.NgayLapHD) = @nam
+				)
+go;
+
+-- 5. Giong cau 4
+
+--6. Liet ke N loai NGK ban chay nhat (doanh thu) trong thang voi n va thang la tham so dau vao
+use TH02
+go 
+create proc sp_danhsach @n int, @thang int
+as
+select top @n MaLoaiNGK
+from LoaiNGK 
+where MaLoaiNGK in (select NGK.MaLoaiNGK
+					from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+					inner join NGK on NGK.MaNGK = CT_HOADON.MaNGK
+					group by  NGK.MaLoaiNGK
+					order by sum(CT_HOADON.SLKHMua* CT_HOADON.DGBan)  desc
+					)
+go;
+							
+
