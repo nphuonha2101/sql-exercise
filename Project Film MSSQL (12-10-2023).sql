@@ -27,6 +27,7 @@ create table theater(
 create table room(
 	room_id int identity(1, 1) primary key,
 	room_name varchar(50),
+	theater_id int references theater(theater_id),
 	seat_rows int not null, 
 	seat_cols int not null,
 	seat_data varchar not null
@@ -71,3 +72,11 @@ create table food_booking(
 	film_booking_id int references film_booking(film_booking_id)
 );
 
+create view v_showtime_details
+as 
+select showtime.showtime_id, film.film_name, room.room_name, theater.theater_name, showtime.showtime_date
+from showtime inner join film on showtime.film_id = film.film_id
+inner join room on showtime.room_id = room.room_id
+inner join theater on room.theater_id = theater.theater_id;
+
+select * from v_showtime_details;
