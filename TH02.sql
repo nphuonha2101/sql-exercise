@@ -10,6 +10,15 @@ CREATE TABLE NHACC(
 );
 
 
+CREATE TABLE LoaiNGK(
+	MaLoaiNGK varchar(8) ,
+	TenLoaiNGK varchar(40) ,
+	MaNCC varchar(8) ,
+	PRIMARY KEY (MaLoaiNGK),
+	FOREIGN KEY (MaNCC) REFERENCES NHACC (MaNCC)
+);
+
+
 CREATE TABLE NGK(
 	MaNGK varchar(8) ,
 	TenNGK varchar(40) ,
@@ -17,14 +26,6 @@ CREATE TABLE NGK(
 	MaLoaiNGK varchar(8) ,
 	PRIMARY KEY (MaNGK),
 	FOREIGN KEY (MaLoaiNGK) REFERENCES LoaiNGK (MaLoaiNGK)
-);
-
-CREATE TABLE LoaiNGK(
-	MaLoaiNGK varchar(8) ,
-	TenLoaiNGK varchar(40) ,
-	MaNCC varchar(8) ,
-	PRIMARY KEY (MaLoaiNGK),
-	FOREIGN KEY (MaNCC) REFERENCES NHACC (MaNCC)
 );
 
 CREATE TABLE KH(
@@ -112,6 +113,14 @@ CREATE TABLE PHIEUTRANO(
 
 SET DATEFORMAT dmy;  
 
+-- NHACC
+INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC)
+VALUES('NC1','Công ty NGK quốc tế Coca Cola','Xa lộ HN, Thủ Đức, TpHCM','088967908');
+INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC)
+VALUES('NC2','Công ty NGK quốc tế Pepsi','Bến Chương Dương, Q.1, TpHCM','083663366');
+INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC) 
+VALUES('NC3','Công ty NGK Bến Chương Dương','Hàm Tử, Q.5, TpHCM','089456677');
+
 -- LOAI NGK
 INSERT INTO LoaiNGK(MaLoaiNGK,TenLoaiNGK,MaNCC)
 VALUES('NK1','Nước uống co gas','NC1');
@@ -179,14 +188,6 @@ VALUES ('DDH04', 'CC1', 8);
 INSERT INTO CT_DDH(SODDH, MaNGK,SLDat)
 VALUES ('DDH04', 'ST2', 12);
 
-
--- NHACC
-INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC)
-VALUES('NC1','Công ty NGK quốc tế Coca Cola','Xa lộ HN, Thủ Đức, TpHCM','088967908');
-INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC)
-VALUES('NC2','Công ty NGK quốc tế Pepsi','Bến Chương Dương, Q.1, TpHCM','083663366');
-INSERT INTO NHACC(MaNCC,TenNCC,DiaChiNCC,DTNCC) 
-VALUES('NC3','Công ty NGK Bến Chương Dương','Hàm Tử, Q.5, TpHCM','089456677');
 
 -- KH
 INSERT INTO KH(MaKH,TenKH,DCKH,DTKH)
@@ -290,15 +291,15 @@ VALUES ('PH04','PS2',15);
 
 
 --PHIEU TRA NO
-INSERT INTO PHIEUTRANNO(SoPTN, NgayTra, SoTienTra, SoHD)
+INSERT INTO PHIEUTRANO(SoPTN, NgayTra, SoTienTra, SoHD)
 VALUES ('PTN01', '18-05-2010', '500000', 'HD01');
-INSERT INTO PHIEUTRANNO(SoPTN, NgayTra, SoTienTra, SoHD)
+INSERT INTO PHIEUTRANO(SoPTN, NgayTra, SoTienTra, SoHD)
 VALUES ('PTN02', '01-06-2010', '350000', 'HD01');
-INSERT INTO PHIEUTRANNO(SoPTN, NgayTra, SoTienTra, SoHD)
+INSERT INTO PHIEUTRANO(SoPTN, NgayTra, SoTienTra, SoHD)
 VALUES ('PTN03', '02-06-2010', '650000', 'HD02');
-INSERT INTO PHIEUTRANNO(SoPTN, NgayTra, SoTienTra, SoHD)
+INSERT INTO PHIEUTRANO(SoPTN, NgayTra, SoTienTra, SoHD)
 VALUES ('PTN04', '15-06-2010', '1020000', 'HD03');
-INSERT INTO PHIEUTRANNO(SoPTN, NgayTra, SoTienTra, SoHD)
+INSERT INTO PHIEUTRANO(SoPTN, NgayTra, SoTienTra, SoHD)
 VALUES ('PTN05', '01-07-2010', '1080000', 'HD03');
 
 
@@ -350,10 +351,10 @@ on NGK.MaNGK = CT_DDH.MaNGK
 group by  NGK.TenNGK;
 
 -- 9. Hien thi ten va so luong cua ngk nhap ve
-select ngk.tenngk, count(ct_pgh.slgiao)
-from ngk inner join ct_pgh 
-on ngk.mangk = ct_pgh.mangk
-group by ngk.tenngk;
+select NGK.TenNGK, count(CT_PGH.SLGiao)
+from ngk inner join CT_PGH 
+on NGK.MaNGK = CT_PGH.MaNGK
+group by NGK.TenNGK;
 
 -- 10. Hien thi don dat hang da dat ngk voi so luong nhieu nhat so voi cac DDH khac co dat ngk do.
 -- Thong tin hien thi: SoDDH, MaNGK, SLDatNhieuNhat
@@ -365,10 +366,10 @@ group by ngk.tenngk;
 --											group by mangk);
 
 select * 
-from ct_ddh
-where slDat in (select max(sldat) as SLDatNhieuNhat
-from ct_ddh
-group by mangk);
+from CT_DDH
+where SLDat in (select max(SLDat) as SLDatNhieuNhat
+from CT_DDH
+group by MaNGK);
 
 -- 11. Hien thi cac NGK khong duoc nhap trong thang 1 nam 2010
 select  NGK.* 
@@ -515,13 +516,13 @@ having sum(PHIEUTRANO.SoTienTra) >= all (select sum(PHIEUTRANO.SoTienTra)
 										group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH);
 
 -- 31. Co bao nhieu hoa don chua thanh toan het so tien
-select count(HOADON.SoHD)
+select count(HOADON.SoHD) as SoHoaDonChuaThanhToanHet
 from HOADON
 where  HOADON.SoHD in (select HOADON.SoHD 
 					   from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
 					   inner join PHIEUTRANO on HOADON.SoHD = PHIEUTRANO.SoHD
 					   group by HOADON.SoHD
-					   having sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) < sum (PHIEUTRANO.SoTienTra)
+					   having sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) > sum (PHIEUTRANO.SoTienTra)
 					   );
 
 
@@ -566,7 +567,16 @@ inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
 group by KH.MaKH, KH.TenKH, KH.DTKH;
 
 -- 3. Tao view V_trano cho biet danh sach khach hang da thu hon 2 lan nhung chua tra het tien. Danh sach gom: MaKH, TenKH, DTKH, Tong tien phai tra, Tong tien da tra, So lan thu tien
+create view v_trano
+as
+select KH.MaKH, KH.TenKH, KH.DTKH, sum(CT_HOADON.DGBan * CT_HOADON.SLKHMua) as TongTienPhaiTra,  sum (PHIEUTRANO.SoTienTra) as SoTienDaTra, count(PHIEUTRANO.SoPTN) as SoLanThuTien
+from HOADON inner join CT_HOADON on HOADON.SoHD = CT_HOADON.SoHD
+inner join PHIEUTRANO on HOADON.SoHD = PHIEUTRANO.SoHD
+inner join KH on HOADON.MaKH = KH.MaKH
+group by KH.MaKH, KH.TenKH, KH.DTKH, HOADON.SoHD
+having sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) > sum (PHIEUTRANO.SoTienTra) and count(PHIEUTRANO.SoPTN) > 2;
 
+select * from v_trano;
 
 -- 4. Tao view V_ton cho biet danh sach nuoc giai khat chua ban duoc
 
@@ -615,13 +625,18 @@ exec sp_ton;
 -- 4. Tinh tong doanh thu cua nam voi nam la tham so dau vao va doanh thu la tham so dau  ra
 use TH02
 go
-create pro sp_dt @nam int, @doanhthu int output
+create proc sp_dt @nam int, @doanhthu int output
 as 
-select @doanhthu = (select sum(CT_HOADON.SLKHMua * CT_HOADON.SLKHMua) 
+select @doanhthu = (select sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan) 
 					from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
 					where DATEPART(year, HOADON.NgayLapHD) = @nam
 				)
 go;
+
+declare @dt int = 0;
+exec sp_dt @nam = 2010, @doanhthu = @dt output;
+print @dt;
+
 
 -- 5. Giong cau 4
 
@@ -630,14 +645,41 @@ use TH02
 go 
 create proc sp_danhsach @n int, @thang int
 as
-select top @n MaLoaiNGK
-from LoaiNGK 
-where MaLoaiNGK in (select NGK.MaLoaiNGK
-					from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
-					inner join NGK on NGK.MaNGK = CT_HOADON.MaNGK
-					group by  NGK.MaLoaiNGK
-					order by sum(CT_HOADON.SLKHMua* CT_HOADON.DGBan)  desc
-					)
-go;
-							
+select top(@n) NGK.MaNGK,sum(CT_HOADON.SLKHMua* CT_HOADON.DGBan)	
+from NGK inner join CT_HOADON on NGK.MaNGK=CT_HOADON.MaNGK
+inner join HOADON on HOADON.SoHD=CT_HOADON.SoHD
+where DATEPART(month,HOADON.NgayLapHD) = @thang
+group by  NGK.MaNGK
+order by sum(CT_HOADON.SLKHMua* CT_HOADON.DGBan) desc
 
+go;
+
+exec sp_danhsach 5, 6;
+
+-- 7. Nhan vao cac tham so tuong ung voi thong tin cua mot dong trong ct_pgh, neu cac dk sau duoc thoa mang thi them dong moi tuong ung voi cac thong tin da cho vao table ct_pgh
+-- so_pgh phai ton tai trong table pgh
+-- mangk tuong ung voi soddh phai ton tai trong table ct_ddh
+-- slgiao < sldat
+
+use TH02
+go
+create proc sp_insert_CTPGH @SoPGH varchar(8), @MaNGK varchar(8), @SLGiao integer, @DGGiao numeric
+as
+if (exists (select @SoPGH from PHIEUGH))
+	begin 
+	raiseerror('SoPGH not exist');
+	end
+if exists (select @MaNGK from CT_PGH inner join PHIEUGH on CT_PGH.SoPGH = PHIEUGH.SoPGH
+inner join CT_DDH on CT_DDH.SODDH = PHIEUGH.SODDH where PHIEUGH.SoPGH = @SoPGH) 
+and @SLGiao < (select SLDat from CT_PGH inner join PHIEUGH on CT_PGH.SoPGH = PHIEUGH.SoPGH
+inner join CT_DDH on CT_DDH.SODDH = PHIEUGH.SODDH where CT_PGH.SoPGH = @SoPGH))
+begin
+	 insert into CT_PGH values (@SoPGH, @MaNGK, @SLGiao, @DGGiao);
+end
+
+go;
+
+exec sp_insert_CTPGH 'PGH05', 'OD', 7, 6000;
+
+
+select * from CT_PGH;
