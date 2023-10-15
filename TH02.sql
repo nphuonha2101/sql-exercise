@@ -657,29 +657,233 @@ go;
 exec sp_danhsach 5, 6;
 
 -- 7. Nhan vao cac tham so tuong ung voi thong tin cua mot dong trong ct_pgh, neu cac dk sau duoc thoa mang thi them dong moi tuong ung voi cac thong tin da cho vao table ct_pgh
--- so_pgh phai ton tai trong table pgh
--- mangk tuong ung voi soddh phai ton tai trong table ct_ddh
+-- so_pgh phai ton tai trong table CT_DDH
+-- mangk tuong ung voi soddh phai ton tai trong table CT_DDH
 -- slgiao < sldat
 
 use TH02
 go
 create proc sp_insert_CTPGH @SoPGH varchar(8), @MaNGK varchar(8), @SLGiao integer, @DGGiao numeric
 as
-if (exists (select @SoPGH from PHIEUGH))
-	begin 
-	raiseerror('SoPGH not exist');
-	end
-if exists (select @MaNGK from CT_PGH inner join PHIEUGH on CT_PGH.SoPGH = PHIEUGH.SoPGH
-inner join CT_DDH on CT_DDH.SODDH = PHIEUGH.SODDH where PHIEUGH.SoPGH = @SoPGH) 
-and @SLGiao < (select SLDat from CT_PGH inner join PHIEUGH on CT_PGH.SoPGH = PHIEUGH.SoPGH
-inner join CT_DDH on CT_DDH.SODDH = PHIEUGH.SODDH where CT_PGH.SoPGH = @SoPGH))
+if exists (select @SoPGH from PHIEUGH)
+and exists (select @MaNGK from DDH inner join CT_DDH on DDH.SODDH = CT_DDH.SODDH
+inner join PHIEUGH on DDH.SODDH = PHIEUGH.SODDH where PHIEUGH.SoPGH = @SoPGH) 
+and  @SLGiao < (select SLDat from DDH inner join CT_DDH on DDH.SODDH = CT_DDH.SODDH
+inner join PHIEUGH on DDH.SODDH = PHIEUGH.SODDH where PHIEUGH.SoPGH = @SoPGH)
 begin
 	 insert into CT_PGH values (@SoPGH, @MaNGK, @SLGiao, @DGGiao);
 end
-
 go;
 
 exec sp_insert_CTPGH 'PGH05', 'OD', 7, 6000;
 
+drop proc sp_insert_CTPGH;
 
+-- test
 select * from CT_PGH;
+select * from PHIEUGH;
+select * from DDH;
+select * from CT_DDH;
+
+
+-- 8. Tao sp_delete_CTPH nhan vao tham so tuong ung voi thong tin trong CTPH, thuc hien yeu cau sau:
+-- Xoa dong tuong ung trong CTPH
+-- Neu phieu hen ko con dong chi tiet tuong ung thi xoa luon phieu hen do
+
+create proc sp_delete_CTPH @SoPH varchar(8), @MaNGK varchar(8), @SLHen integer
+as
+if exists (select * from CT_PH where SoPH = @SoPH and MaNGK = @MaNGK and SLHen = @SLHen)
+begin 
+	delete from CT_PH where SoPH = @SoPH and MaNGK = @MaNGK and SLHen = @SLHen
+end
+if not exists (select * from CT_PH inner join PHIEUHEN on CT_PH.SoPH = PHIEUHEN.SoPH where CT_PH.SoPH = @SoPH and CT_PH.MaNGK = @MaNGK and CT_PH.SLHen = @SLHen)
+begin 
+	delete from PHIEUHEN where SoPH = @SoPH;
+end
+go;
+
+exec sp_delete_CTPH 'PH03', 'CC2', 9;
+
+-- test
+select * from CT_PH inner join PHIEUHEN on CT_PH.SoPH = PHIEUHEN.SoPH where CT_PH.SoPH = 'PH04';
+select * from PHIEUHEN;
+select * from CT_PH;
+select * from CT_PH inner join PHIEUHEN on CT_PH.SoPH = PHIEUHEN.SoPH;
+
+-- FUNCTIONs 
+-- 1. Tao ham f_list nhan vao hai tham so la Ngay 1 va Ngay 2, cho biet danh sach NGK da duoc ban trong thoi gian tren
+-- thong tin gom MaNGK, TenNGK, DVT, SoLuong
+create function f_list(@Ngay1 date, @Ngay2 date)
+returns table 
+as
+return (select NGK.MaNGK, NGK.TenNGK, NGK.Quycach as DVT, sum(CT_HOADON.SLKHMua) as SoLuong
+from NGK inner join CT_HOADON on CT_HOADON.MaNGK = NGK.MaNGK
+inner join HOADON on HOADON.SoHD = CT_HOADON.SoHD
+where HOADON.NgayLapHD between @Ngay1 and @Ngay2
+group by NGK.MaNGK, NGK.TenNGK, NGK.Quycach)
+;
+
+
+select * from dbo.f_list('01-01-2010', '30-12-2010');
+
+-- 2. Tao ham f_max cho biet ddh da dat NGK voi so luong nhieu nhat so voi cac DDH co dat NGK do
+-- thong tin hien thi: SoDDH, MaNGK, SLDatNhieuNhat
+create function f_max()
+returns table
+as 
+return (select distinct CT_DDH.SODDH, CT_DDH.MaNGK, CT_DDH.SLDat as SLDatNhieuNhat
+		from CT_DDH
+		where SLDat in (select max(SLDat)
+						from CT_DDH
+						group by MaNGK, SODDH));
+		
+select * from dbo.f_max();
+
+-- 3.Tao f_kh hien thi thong tin kh giao dich voi cua hang nhieu nhat (can cu vao so lan mua hang)
+create function f_kh() 
+returns table
+as 
+return (select KH.*, count(HOADON.SoHD) as SoLanMuaHang
+		from KH inner join HOADON on KH.MaKH = HOADON.MaKH
+		inner join CT_HOADON on CT_HOADON.SoHD = HOADON.SoHD
+		group by KH.MaKH, KH.TenKH, KH.DTKH, KH.DCKH
+		having count(HOADON.SoHD) >= all (select count(HOADON.SoHD)
+										  from HOADON 
+										  group by HOADON.MaKH));
+
+select * from dbo.f_kh();
+
+-- 4. Tao f_xlkh nhan vao tham so @MaKH, tinh tong tien Khach da tra (TongTien = sum(SLKHMua * DGBan))
+-- Tra ve: 
+-- Tong tien > 800.000 => KH VIP
+-- Tong tien > 500.000 => KH THANH VIEN
+-- Tong tien <= 500.000 => KH THAN THIET
+
+create function f_xlkh(@MaKH varchar(8))
+returns varchar(50)
+as 
+begin 
+	declare	@tongTien int = 0;
+	set @tongTien = (select sum(CT_HOADON.SLKHMua * CT_HOADON.DGBan)
+					from CT_HOADON inner join HOADON on CT_HOADON.SoHD = HOADON.SoHD
+					
+					where HOADON.MaKH = @MaKH)
+	if (@tongTien > 800000)
+	begin
+		return 'KH VIP'
+	end
+	if (@tongTien > 500000)
+	begin
+		return 'KH THANH VIEN'
+	end
+	return 'KH THAN THIET'
+end;
+
+print dbo.f_xlkh('KH04');
+
+-- TRIGGERs
+-- 1. Tao trigger ph_insert tren bang PHIEUHEN kiem tra rang buoc toan ven 
+-- MaKH phai ton tai trong bang KH
+-- Ngay hen giao ko the truoc ngay lap phieu hen
+
+create trigger ph_insert on PHIEUHEN after insert
+as
+begin
+	-- kiem tra dong vua them trong bang inserted co ton tai trong bang KH hay khong
+	if not exists (select inserted.MaKH from KH inner join inserted on KH.MaKH = inserted.MaKH)
+	begin 
+		raiserror('Nguoi dung khong ton tai trong bang KH', 16, 1)
+		rollback
+		return
+	end
+	if exists (select inserted.SoPH from inserted where inserted.NgayHenGiao  < inserted.NgayLapPH)
+	begin 
+		 raiserror('Loi: Ngay Hen Giao < Ngay Lap PH',16, 1)
+		rollback
+		return
+	end
+end;
+
+select * from PHIEUHEN;
+
+drop trigger ph_insert;
+
+
+insert into PHIEUHEN values('PH04', '15-10-2010', '14-10-2010', 'KH03');
+
+-- 2. Tao trigger CTPH_insert tren bang CT_PH kiem tra moi khi them mot dong vao bang CT_PH: "Tong SL hen cho moi MaNGK khong duoc vuot qua 20"
+
+create trigger CTPH_insert on CT_PH after insert
+as
+begin 
+
+	if exists (select * from inserted where SLHen > 20)
+	begin 
+		raiserror('So luong NGK lon hon 20!', 16, 1);
+		rollback
+		return
+	end
+end;
+
+drop trigger  CTPH_insert;
+select * from CT_PH;
+insert into CT_PH values('PH03', 'OD', 22);
+
+-- 3. Viet trigger pt_insert tren bang PHIEUTRANO kiem tra khi them mot dong vao bang PHIEUTRANO
+-- "Khach hang chi co the tra toi da 3 lan tren 1 hoa don"
+create trigger PT_insert on PHIEUTRANO after insert
+as
+begin 
+	declare @countSLTraNo int = 0;
+	set @countSLTraNo = (select count(PHIEUTRANO.SoPTN)
+						from PHIEUTRANO inner join inserted on PHIEUTRANO.SoHD = inserted.SoHD
+						where PHIEUTRANO.SoHD = inserted.SoHD
+						group by PHIEUTRANO.SoHD)
+
+	if @countSLTraNo > 3
+	begin 
+		raiserror('Khach hang chi co the tra toi da 3 lan tren 1 hoa don!', 16, 1);
+		rollback
+		return
+	end
+end;
+
+select * from PHIEUTRANO;
+drop trigger PT_insert;
+
+insert into PHIEUTRANO values('PTN06', '16-10-2010', 12000, 'HD01');
+
+delete from PHIEUTRANO where SoPTN = 'PTN06'
+
+-- 4. Viet trigger HD_update tren bang HOADON kiem tra rang buoc toan ven sau moi khi cap nhat 1 dong tren bang HOADON
+-- Ko duoc cap nhat SoHD
+-- MaKH phai ton tai trong bang KH
+-- NgayLapHD < Ngay hien tai
+
+create trigger HD_update on HOADON after update
+as 
+begin
+	if not exists (select inserted.SoHD from inserted inner join deleted on inserted.SoHD = deleted.SoHD)
+	begin 
+		raiserror('So HD da duoc thay doi!', 16, 1);
+		rollback 
+		return
+	end
+	if not exists (select inserted.MaKH from inserted inner join KH on inserted.MaKH = KH.MaKH)
+	begin 
+		raiserror('Ma KH khong ton tai trong bang KH!', 16, 1);
+		rollback 
+		return
+	end
+	if exists (select * from inserted where inserted.NgayLapHD > cast(getdate() as date))
+	begin 
+		raiserror('Ngay Lap HD > Ngay hien tai!', 16, 1);
+		rollback 
+		return
+	end
+end;
+
+
+select * from HOADON;
+
+update HOADON set SoHD = 'HD01', NgayLapHD = '17-10-2023', MaKH = 'KH01' where SoHD = 'HD01';
