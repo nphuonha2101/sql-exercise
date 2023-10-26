@@ -1,4 +1,7 @@
-﻿create table HOCVIEN(
+﻿
+use TH03;
+
+create table HOCVIEN(
 	MAHV varchar(10) not null primary key,
 	HO nvarchar(3000),
 	TEN nvarchar(3000),
@@ -25,7 +28,7 @@ create table GIAOVIEN(
 	NGVL date,
 	HESO numeric,
 	MUCLUONG int,
-	MAKHOA varchar(10)
+	MAKHOA varchar(10) references KHOA(MAKHOA)
 );
 
 create table MONHOC(
@@ -83,6 +86,24 @@ values
 ('MMT', 'Mạng và truyền thông', '20/10/2005', 'GV03'),
 ('KTMT', 'Kỹ thuật máy tính', '20/12/2005', null);
 
+insert into GIAOVIEN(MAGV, HOTEN, HOCVI, HOCHAM, GIOITINH, NGSINH, NGVL, HESO, MUCLUONG, MAKHOA)
+values
+('GV01', 'Ho Thanh Son', 'PTS', 'GS', 'Nam', '2/5/1950', '11/1/2004', 5.00, 2250000, 'KHMT'),
+('GV02', 'Tran Tam Thanh', 'TS', 'PGS', 'Nam', '17/12/1965', '20/4/2004', 4.50, 2025000, 'HTTT'),
+('GV03', 'Do Nghiem Phung', 'TS', 'GS', 'Nu', '1/8/1950', '23/9/2004', 4.00, 1800000, 'CNPM'),
+('GV04', 'Tran Nam Son', 'TS', 'PGS', 'Nam', '22/2/1961', '12/1/2005', 4.50, 2025000, 'KTMT'),
+('GV05', 'Mai Thanh Danh', 'ThS', 'GV', 'Nam', '12/3/1958', '12/1/2005', 3.00, 1350000, 'HTTT'),
+('GV06', 'Tran Doan Hung', 'TS', 'GV', 'Nam', '11/3/1953', '12/1/2005', 4.50, 2050000, 'KTMT'),
+('GV07', 'Nguyen Minh Tien', 'GV', 'GS', 'Nam', '23/11/1971', '1/3/2005', 4.00, 1800000, 'KTMT'),
+('GV08', 'Le Thi Tran', 'KS', null, 'Nu', '26/3/1974', '1/3/2005', 1.69, 760500, 'KTMT'),
+('GV09', 'Nguyen To Lan', 'ThS', 'GV', 'Nu', '31/12/1966', '1/3/2005', 4.00, 1800000, 'HTTT'),
+('GV10', 'Le Tran Anh Loan', 'KS', null, 'Nu', '17/7/1972', '1/3/2005', 1.86, 837000, 'CNPM'),
+('GV11', 'Ho Thanh Tung', 'CN', 'GV', 'Nam', '12/1/1980', '15/5/2005', 2.67, 1201500, 'MMT'),
+('GV12', 'Tran Van Anh', 'CN', null, 'Nu', '29/3/1981', '15/5/2005', 1.69, 760500, 'CNPM'),
+('GV13', 'Nguyen Linh Dan', 'CN', null, 'Nu', '23/5/1980', '15/5/2005', 1.69, 760500, 'KTMT'),
+('GV14', 'Truong Minh Chau', 'ThS', 'GV', 'Nu', '30/11/1976', '15/5/2005', 3.00, 1350000, 'MMT'),
+('GV15', 'Le Ha Thanh', 'PTS', 'GV', 'Nam', '4/5/1978', '15/5/2005', 3.00, 1350000, 'KHMT');
+
 insert into HOCVIEN(MAHV, HO, TEN, NGSINH, GIOITINH, NOISINH, MALOP)
 values
 ('K1101', 'Nguyen Van', 'A', '27/1/1986', 'Nam', 'TP.HCM', 'K11'),
@@ -121,23 +142,6 @@ values
 ('K1311', 'Tran Minh', 'Thuc', ' 04/04/1986', 'Nam', 'TP.HCM', 'K13'),
 ('K1312', 'Nguyen Thi Kim', 'Yen', '07/09/1986', 'Nu', 'TP.HCM', 'K13');
 
-insert into GIAOVIEN(MAGV, HOTEN, HOCVI, HOCHAM, GIOITINH, NGSINH, NGVL, HESO, MUCLUONG, MAKHOA)
-values
-('GV01', 'Ho Thanh Son', 'PTS', 'GS', 'Nam', '2/5/1950', '11/1/2004', 5.00, 2250000, 'KHMT'),
-('GV02', 'Tran Tam Thanh', 'TS', 'PGS', 'Nam', '17/12/1965', '20/4/2004', 4.50, 2025000, 'HTTT'),
-('GV03', 'Do Nghiem Phung', 'TS', 'GS', 'Nu', '1/8/1950', '23/9/2004', 4.00, 1800000, 'CNPM'),
-('GV04', 'Tran Nam Son', 'TS', 'PGS', 'Nam', '22/2/1961', '12/1/2005', 4.50, 2025000, 'KTMT'),
-('GV05', 'Mai Thanh Danh', 'ThS', 'GV', 'Nam', '12/3/1958', '12/1/2005', 3.00, 1350000, 'HTTT'),
-('GV06', 'Tran Doan Hung', 'TS', 'GV', 'Nam', '11/3/1953', '12/1/2005', 4.50, 2050000, 'KTMT'),
-('GV07', 'Nguyen Minh Tien', 'GV', 'GS', 'Nam', '23/11/1971', '1/3/2005', 4.00, 1800000, 'KTMT'),
-('GV08', 'Le Thi Tran', 'KS', null, 'Nu', '26/3/1974', '1/3/2005', 1.69, 760500, 'KTMT'),
-('GV09', 'Nguyen To Lan', 'ThS', 'GV', 'Nu', '31/12/1966', '1/3/2005', 4.00, 1800000, 'HTTT'),
-('GV10', 'Le Tran Anh Loan', 'KS', null, 'Nu', '17/7/1972', '1/3/2005', 1.86, 837000, 'CNPM'),
-('GV11', 'Ho Thanh Tung', 'CN', 'GV', 'Nam', '12/1/1980', '15/5/2005', 2.67, 1201500, 'MTT'),
-('GV12', 'Tran Van Anh', 'CN', null, 'Nu', '29/3/1981', '15/5/2005', 1.69, 760500, 'CNPM'),
-('GV13', 'Nguyen Linh Dan', 'CN', null, 'Nu', '23/5/1980', '15/5/2005', 1.69, 760500, 'KTMT'),
-('GV14', 'Truong Minh Chau', 'ThS', 'GV', 'Nu', '30/11/1976', '15/5/2005', 3.00, 1350000, 'MTT'),
-('GV15', 'Le Ha Thanh', 'PTS', 'GV', 'Nam', '4/5/1978', '15/5/2005', 3.00, 1350000, 'KHMT');
 
 insert into LOP(MALOP, TENLOP, TRGLOP, SISO, MAGVCN)
 values
@@ -174,7 +178,7 @@ values
 ('K12', 'CSDL', 'GV09', 2, 2006, '1/6/2006', '15/7/2006'),
 ('K13', 'CTDLGT', 'GV15', 2, 2006, '1/6/2006', '15/7/2006'),
 ('K13', 'CSDL', 'GV05', 3, 2006, '1/8/2006', '15/12/2006'),
-('K13', 'DGMT', 'GV07', 3, 2006, '1/8/2006', '15/12/2006'),
+('K13', 'DHMT', 'GV07', 3, 2006, '1/8/2006', '15/12/2006'),
 ('K11', 'CTDLGT', 'GV15', 3, 2006, '1/8/2006', '15/12/2006'),
 ('K12', 'CTDLGT', 'GV15', 3, 2006, '1/8/2006', '15/12/2006'),
 ('K11', 'HDH', 'GV04', 1, 2007, '2/1/2007', '18/2/2007'),
@@ -262,8 +266,8 @@ values
 
 
 -- Contraints
-alter table KHOA add constraint FK_TRUONGKHOA foreign key (TRGKHOA) references GIAOVIEN(MAGV) on delete cascade on update cascade;
-alter table GIAOVIEN add constraint FK_MAKHOA foreign key (MAKHOA) references KHOA(MAKHOA) on delete cascade on update cascade;
-alter table HOCVIEN add constraint FK_MALOP foreign key (MALOP) references LOP(MALOP) on delete cascade on update cascade;
+alter table KHOA add constraint FK_TRUONGKHOA foreign key (TRGKHOA) references GIAOVIEN(MAGV);
+alter table GIAOVIEN add constraint FK_MAKHOA foreign key (MAKHOA) references KHOA(MAKHOA);
+alter table HOCVIEN add constraint FK_MALOP foreign key (MALOP) references LOP(MALOP);
 
 
