@@ -1,5 +1,6 @@
 ﻿
 use TH03;
+set dateformat dmy;
 
 create table HOCVIEN(
 	MAHV varchar(10) not null primary key,
@@ -26,7 +27,7 @@ create table GIAOVIEN(
 	GIOITINH varchar(10),
 	NGSINH date,
 	NGVL date,
-	HESO numeric,
+	HESO float,
 	MUCLUONG int,
 	MAKHOA varchar(10) references KHOA(MAKHOA)
 );
@@ -71,12 +72,12 @@ create table KETQUATHI(
 	MAMH varchar(10) references MONHOC(MAMH),
 	LANTHI int,
 	NGTHI date,
-	DIEM numeric,
+	DIEM float,
 	KQUA varchar(255),
 	primary key(MAHV, MAMH, LANTHI)
 );
 
-set dateformat dmy;
+
 -- insert
 insert into KHOA(MAKHOA, TENKHOA, NGTLAP, TRGKHOA)
 values
@@ -270,4 +271,545 @@ alter table KHOA add constraint FK_TRUONGKHOA foreign key (TRGKHOA) references G
 alter table GIAOVIEN add constraint FK_MAKHOA foreign key (MAKHOA) references KHOA(MAKHOA);
 alter table HOCVIEN add constraint FK_MALOP foreign key (MALOP) references LOP(MALOP);
 
+-- BATCHS
+-- 1. Su dung kieu du lieu CURSOR, viet doan chuong trinh in ra danh sach giao vien cua tung khoa
+declare @ma_khoa varchar(10), @ten_khoa nvarchar(3000), @ten_gv nvarchar(3000), @hocvi nvarchar(3000), @hocham nvarchar(3000);
+declare khoa_cursor cursor for select MAKHOA, TENKHOA from KHOA;
+open khoa_cursor;
+fetch next from khoa_cursor into @ma_khoa, @ten_khoa;
+while @@FETCH_STATUS = 0
+begin 
+	-- declare @index int = 0;
+	print('----DANH SACH GIANG VIEN KHOA ' + @ten_khoa);
+	declare gv_cursor cursor for select HOTEN, HOCVI, HOCHAM from GIAOVIEN where MAKHOA = @ma_khoa;
+	open gv_cursor;
+	fetch next from gv_cursor into @ten_gv, @hocvi, @hocham;
+	while @@FETCH_STATUS = 0
+	begin 
+		-- set @index = @index + 1;
+		print(@ten_gv + ' ' + @hocvi + ' ' + @hocham);
+		fetch next from gv_cursor into @ten_gv, @hocvi, @hocham;
+	end
+	
+	deallocate gv_cursor;
+	fetch next from khoa_cursor into @ma_khoa, @ten_khoa;
+end
 
+deallocate khoa_cursor;
+
+--2. Su dung cau truc vong lap while, su dung sequence de tao TENMH, MAMH, nhap 10 mau MONHOC voi noi dung:
+-- MAMH: 'M1', 'M2', ...
+-- TENMH: 'Mon 1', 'Mon 2', ...
+declare  @count int = 1;
+while (@count <= 10) 
+begin 
+	insert into MONHOC values ('M' + cast(@count as varchar(10)) , 'Mon ' + cast(@count as varchar(10)) , 0, 0, null);
+	set @count = @count + 1;
+end;
+
+select * from MONHOC;
+
+-- FUNCTIONS
+-- 1. Tao ham F_DTB cho biet diem trung binh cac mon thi cua hoc vien. Moi mon thi, chi lay diem sau cung, ma hoc vien la tham so cua ham.
+create function f_dtb(@mahv varchar(10))
+returns float
+as
+begin
+return (
+	select avg(DIEM)
+	from HOCVIEN inner join KETQUATHI on HOCVIEN.MAHV = KETQUATHI.MAHV
+	where HOCVIEN.MAHV = @mahv and KETQUATHI.LANTHI in (select MAX(KETQUATHI.LANTHI)
+														from KETQUATHI 
+														where MAHV = @mahv
+														group by MAMH)
+	group by HOCVIEN.MAHV, HOCVIEN.HO, HOCVIEN.TEN
+)
+end
+
+print(dbo.f_dtb('k1102'));
+select DTB from dbo.f_dtb('k1102');
+drop function f_dtb;
+
+-- 2. Tao ham f_xl co ma hoc vien la tham so, cho biet ket qua xep loai cua hoc vien nhu sau:
+-- DTB >= 9 -> 'XS'
+-- 8 <= DTB < 9 -> 'G'
+-- 6.5 <= DTB < 8 -> 'K'
+-- 5 <= DTB < 6.5 -> 'TB'
+-- DTB < 5 -> 'Y'
+
+create function f_xl(@mahv varchar(10))
+returns varchar(5)
+begin 
+	declare @dtb float = dbo.f_dtb(@mahv);
+	if (@dtb >= 9)
+	begin 
+		return 'XS';
+	end
+	if (8 <= @dtb and @dtb < 9)
+	begin 
+		return 'G';
+	end
+	if (6.5 <= @dtb and @dtb < 8)
+	begin 
+	return 'K';
+	end
+	if (5 <= @dtb and @dtb < 6.5)
+	begin 
+		return 'TB';
+	end
+	return 'Y';
+end
+
+print(dbo.f_xl('K1102'));
+
+drop function f_xl;
+
+-- 3. Tao ham f_dsmon cho  biet danh sach diem cac mon hoc ma hoc vien co ket qua 'Dat'
+-- DS gom: MAMH, TENMH, DIEM
+-- Ma hoc vien la tham so cua ham
+create function f_dsmon(@mahv varchar(10))
+returns table
+as
+return (
+	select MONHOC.MAMH,MONHOC.TENMH, KETQUATHI.DIEM
+	from MONHOC inner join KETQUATHI on MONHOC.MAMH = KETQUATHI.MAMH
+	inner join HOCVIEN on HOCVIEN.MAHV = KETQUATHI.MAHV
+	where HOCVIEN.MAHV = @mahv and KETQUATHI.LANTHI in (select max(KETQUATHI.LANTHI) from KETQUATHI group by MAMH) and KETQUATHI.DIEM >= 5
+);
+
+select * from f_dsmon('K1102');
+
+-- 4. Tao ham f_dsgv cho biet danh sach hoc vien da day ma khoa phu trach. Ham co tham so la ma khoa
+-- (chua dung)
+create function f_dsgv(@makhoa varchar(10))
+returns table
+as 
+return (
+	select GIAOVIEN.* 
+	from GIAOVIEN inner join GIANGDAY on GIAOVIEN.MAGV = GIANGDAY.MAGV
+	where GIANGDAY.MAMH in (select MONHOC.MAMH
+							from MONHOC where MAKHOA = @makhoa)
+);
+
+select * from dbo.f_dsgv('HTTT');
+
+-- 5. Tao ham tra ve danh sach hoc vien va ket qua xep loai tung hoc vien cua lop
+-- Thong tin gom: MAHV, Ho & ten HV, DTB, Xep loai
+-- Ma lop la tham so cua ham
+
+create function f_tk_lop(@malop varchar(10))
+returns table
+as
+return (
+	select HOCVIEN.MAHV, HOCVIEN.HO, HOCVIEN.TEN, dbo.f_dtb(HOCVIEN.MAHV) as DTB, dbo.f_xl(HOCVIEN.MAHV) as XEPLOAI
+	from HOCVIEN 
+	where HOCVIEN.MALOP = @malop
+);
+
+select * from dbo.f_tk_lop('K12');
+
+-- PROCEDURES
+use TH03
+go
+create proc p_kqmh @p_mahv varchar(10)
+as 
+select HOCVIEN.MAHV,HOCVIEN.HO, HOCVIEN.TEN, MONHOC.MAMH, MONHOC.TENMH, KETQUATHI.DIEM
+from HOCVIEN inner join KETQUATHI on HOCVIEN.MAHV = KETQUATHI.MAHV
+inner join MONHOC on MONHOC.MAMH = KETQUATHI.MAMH
+where HOCVIEN.MAHV = @p_mahv and KETQUATHI.LANTHI in (select MAX(LANTHI)
+							from KETQUATHI 
+							where KETQUATHI.MAHV = @p_mahv
+							group by MAMH)
+
+go;
+
+exec p_kqmh 'k1102';
+
+drop proc p_kqmh;
+
+-- 2. Tao thu tuc p_gvmh, cho biet danh sach sinh vien hoc mon (p_mamh), do giao vien (p_mgv) phu trach trong hoc ky (p_hocky), nam hoc(p_nam)
+
+use TH03
+go
+create proc p_gvmh @p_mamh varchar(10), @p_magv varchar(10), @p_hocky int, @p_nam int
+as
+select GIAOVIEN.MAGV, GIANGDAY.MAMH, HOCVIEN.HO, HOCVIEN.TEN
+from HOCVIEN inner join LOP on HOCVIEN.MALOP = LOP.MALOP
+inner join GIANGDAY on LOP.MALOP = GIANGDAY.MALOP
+inner join GIAOVIEN on GIANGDAY.MAGV = GIAOVIEN.MAGV
+where GIAOVIEN.MAGV = @p_magv and GIANGDAY.MAMH = @p_mamh and GIANGDAY.HOCKY = @p_hocky and GIANGDAY.NAM = @p_nam
+go;
+
+exec p_gvmh 'CTDLGT', 'GV15', 2, 2006;
+
+-- 3. Tao thu tuc p_lop cho biet danh sach hoc vien cua lop (p_malop)
+-- Thong tin gom: ma lop, ma gvcn, ten truong lop, mahv, ho & ten hoc vien
+-- thu tuc nhan mot tham so dau vao la ma lop
+
+use TH03
+go
+create proc p_lop @malop varchar(10)
+as
+declare @ten_truonglop nvarchar(3000);
+select @ten_truonglop = HOCVIEN.TEN from HOCVIEN inner join LOP on HOCVIEN.MAHV = LOP.TRGLOP where LOP.MALOP = 'K11';
+
+select LOP.MALOP, LOP.MAGVCN, GIAOVIEN.HOTEN as TEN_GVCN, @ten_truonglop as TEN_TRUONGLOP, HOCVIEN.MAHV, HOCVIEN.HO, HOCVIEN.TEN
+from HOCVIEN inner join LOP on LOP.MALOP = HOCVIEN.MALOP 
+inner join GIAOVIEN on LOP.MAGVCN = GIAOVIEN.MAGV
+where LOP.MALOP = 'K11'
+
+go;
+
+exec p_lop 'K11';
+
+drop proc p_lop;
+
+-- 4. Tao thu tuc p_topN liet ke danh sach n mon hoc co so luong dang ky hoc nhieu nhat
+-- Thong tin gom: ma mon hoc, ten mon hoc, so luong hoc vien
+-- Nhan vao mot tham so n
+
+use TH03
+go
+create proc p_topn @n int
+as
+select top(@n) MONHOC.MAMH, MONHOC.TENMH, count(HOCVIEN.MAHV) as SLDK
+from MONHOC inner join GIANGDAY on MONHOC.MAMH = GIANGDAY.MAMH
+inner join LOP on GIANGDAY.MALOP = LOP.MALOP
+inner join HOCVIEN on LOP.MALOP = HOCVIEN.MALOP
+group by MONHOC.MAMH, MONHOC.TENMH
+order by count(HOCVIEN.MAHV) desc
+go;
+
+exec p_topn 9;
+
+-- 5. Tao thu tuc p_tk, thong ke so luong hoc vien cua tung mon hoc ma giao vien (p_magv) da phu trach giang day
+-- Thong tin gom: magv, ten gv, ma mh, ten mh, so luong hoc vien
+-- Thu tuc nhan 1 tham so dau vao la ma giao vien (p_magv)
+
+use TH03
+go
+create proc p_tk @p_magv varchar(10)
+as
+select  GIAOVIEN.MAGV, GIAOVIEN.HOTEN, MONHOC.MAMH, MONHOC.TENMH, count(HOCVIEN.MAHV) as SL_HOCVIEN
+from MONHOC inner join GIANGDAY on MONHOC.MAMH = GIANGDAY.MAMH
+inner join LOP on GIANGDAY.MALOP = LOP.MALOP
+inner join HOCVIEN on LOP.MALOP = HOCVIEN.MALOP
+inner join GIAOVIEN on GIAOVIEN.MAGV = GIANGDAY.MAGV
+group by GIAOVIEN.MAGV, GIAOVIEN.HOTEN, MONHOC.MAMH, MONHOC.TENMH
+
+go;
+
+exec p_tk 'GV15';
+
+-- TRIGGERS
+-- 1. 
+create trigger ketquathi_insert_update on KETQUATHI after insert, update 
+as 
+begin
+declare @solanthi int;
+
+	set @solanthi = (select LANTHI from inserted)
+
+	if (@solanthi > 3)
+	begin 
+		raiserror('Mot hoc vien khong duoc thi mot mon qua 3 lan', 16, 1);
+		rollback;
+	end
+end;
+
+drop trigger ketquathi_insert_update;
+
+insert into KETQUATHI
+values
+('K1104', 'CTRR', 4, '30/6/2006', 5.00, 'Dat');
+
+-- 2.
+create trigger giangday_insert_update on GIANGDAY after insert, update
+as
+begin
+declare @hocky int;
+
+	set @hocky = (select HOCKY from inserted);
+
+	if (@hocky < 1 or @hocky > 3)
+	begin 
+		raiserror('Hoc ky chi co gia tri tu 1 den 3', 16, 1);
+		rollback;
+	end
+end;
+
+insert into GIANGDAY
+values
+('K13', 'LRCFW', 'GV07', 4, 2008, '2/1/2006', '12/5/2006');
+
+-- 3
+create trigger giaovien_hovi_insert_update on GIAOVIEN after insert, update
+as
+begin
+	declare @hocvi nvarchar(3000);
+
+	set @hocvi = (select HOCVI from inserted);
+
+	if (@hocvi not in ('CN', 'KS', 'ThS', 'TS', 'PTS'))
+	begin 
+		raiserror('Hoc vi cua giao vien khong hop le', 16, 1);
+		rollback;
+	end
+end;
+
+insert into GIAOVIEN
+values
+('GV16', 'Nguyen Van C', 'Professor', 'GV', 'Nam', '4/5/1991', '15/5/2005', 3.00, 6350000, 'KHMT');
+
+-- 4
+create trigger hocvien_tuoi_insert_update on HOCVIEN after insert, update
+as
+begin 
+	declare @tuoi int;
+
+	set @tuoi = (select DATEPART(year, GETDATE()) - DATEPART(year, NGSINH) from inserted);
+	if (@tuoi < 18)
+	begin 
+		raiserror('Hoc vien it nhat la 18 tuoi', 16, 1);
+		rollback;
+	end
+end;
+
+insert into HOCVIEN(MAHV, HO, TEN, NGSINH, GIOITINH, NOISINH, MALOP)
+values
+('K1313', 'Nguyen Tran', 'D', '27/1/2008', 'Nam', 'TP.HCM', 'K13');
+
+-- 5
+create trigger giangday_ngay_insert_update on GIANGDAY after insert, update
+as
+begin
+	declare @tu_ngay date, @den_ngay date
+
+	select @tu_ngay = TUNGAY, @den_ngay = DENNGAY from inserted;
+
+	if (@tu_ngay > @den_ngay)
+	begin 
+		raiserror('Ngay bat dau phai nho hon hoac bang ngay ket thuc', 16, 1);
+		rollback;
+	end
+end;
+
+insert into GIANGDAY
+values
+('K13', 'LRCFW', 'GV07', 1, 2008, '2/1/2006', '12/12/2005');
+
+-- 6
+create trigger giaovien_tuoi_insert_update on GIAOVIEN after insert, update
+as
+begin 
+	declare @tuoi int;
+
+	set @tuoi = (select DATEPART(year, GETDATE()) - DATEPART(year, NGSINH) from inserted);
+
+	if (@tuoi < 22)
+	begin 
+		raiserror('Giao vien khi vao lam it nhat 22 tuoi', 16, 1);
+		rollback;
+	end
+end;
+
+insert into GIAOVIEN
+values
+('GV16', 'Nguyen Van C', 'KS', 'GV', 'Nam', '4/5/2003', '15/5/2005', 3.00, 1350000, 'KHMT');
+
+-- 7
+create trigger monhoc_tinchi_insert_update on MONHOC after insert, update
+as
+begin
+	declare @tc_lt int, @tc_th int;
+
+	select @tc_lt = TCLT, @tc_th = TCTH from inserted;
+
+	if (abs(@tc_lt - @tc_th) > 3)
+	begin 
+		raiserror('Cac mon hoc co TCLT va TCTH khong lech nhau qua 3TC', 16, 1);
+		rollback;
+	end
+end;
+
+insert into MONHOC(MAMH, TENMH, TCLT, TCTH, MAKHOA)
+values
+('GTNM', 'Giao tiep nguoi may', 4, 8, 'KHMT');
+
+-- 8
+create trigger giangday_monhoc_lop_insert_update on GIANGDAY after insert, update
+as
+begin 
+	declare @count_mh int;
+
+	set @count_mh = (select count(GIANGDAY.MAMH) 
+					from GIANGDAY inner join inserted
+					on GIANGDAY.MALOP = inserted.MALOP
+					where GIANGDAY.HOCKY = inserted.HOCKY
+					group by GIANGDAY.MALOP)
+
+	if (@count_mh > 3)
+	begin
+		raiserror('Moi mot lop chi duoc hoc toi da 3 mon trong hoc ky', 16, 1);
+		rollback;
+	end
+end;
+
+insert into GIANGDAY(MALOP, MAMH, MAGV, HOCKY, NAM, TUNGAY, DENNGAY)
+values
+('K11', 'NMCNPM', 'GV07', 1, 2006, '2/1/2006', '12/5/2006');
+
+drop trigger giangday_monhoc_lop_insert_update;
+
+select * from GIANGDAY;
+
+delete from GIANGDAY where MALOP = 'K11' and MAMH = 'NMCNPM';
+
+-- 9
+create trigger lop_siso_update on LOP after update
+as
+begin
+	declare @update_siso int, @siso_thuc int, @malop varchar(10);
+	set @malop = (select MALOP from inserted);
+
+	set @update_siso = (select count(HOCVIEN.MAHV)
+						from HOCVIEN inner join LOP on HOCVIEN.MALOP = LOP.MALOP
+						where LOP.MALOP = @malop
+						group by LOP.MALOP);
+
+	set @siso_thuc = (select SISO from inserted);
+
+	if (@update_siso <> @siso_thuc)
+	begin
+		raiserror('Si so phai bang so luong hoc vien cua lop do', 16, 1);
+		rollback;
+	end
+end;
+
+-- si so lop k11 la 11
+update LOP 
+set SISO = 10 where MALOP = 'K11';
+
+drop trigger lop_siso_update;
+
+-- 10
+create trigger dieukien_insert_update on DIEUKIEN after insert, update
+as 
+begin 
+	declare @ma_mh varchar(10), @ma_mhtruoc varchar(10);
+
+	select @ma_mh = MAMH, @ma_mhtruoc = MAMH_TRUOC from inserted;
+
+	if (@ma_mh = @ma_mhtruoc)
+	begin
+		raiserror('Ma mon hoc va ma mon hoc truoc khong duoc giong nhau', 16, 1);
+		rollback;
+	end
+	
+	if exists (select * from DIEUKIEN where MAMH = @ma_mhtruoc and MAMH_TRUOC = @ma_mh)
+	begin
+		raiserror('Ma mon hoc va ma mon hoc truoc khong duoc phu thuoc nhau', 16, 1);
+		rollback;
+	end
+end;
+
+insert into DIEUKIEN(MAMH, MAMH_TRUOC)
+values
+('CTRR', 'CSDL');
+
+-- 11
+create trigger giaovien_luong_insert_update on GIAOVIEN after insert, update
+as
+begin
+	declare @hocvi nvarchar(3000), @hocham nvarchar(3000), @muc_luong int, @mucluong_ud_ins int;
+
+	select @hocvi = HOCVI, @hocham = HOCHAM, @mucluong_ud_ins = MUCLUONG from inserted;
+
+	set @muc_luong = (select top(1) MUCLUONG from GIAOVIEN where HOCVI = @hocvi and HOCHAM = @hocham);
+
+	if (@muc_luong <> @mucluong_ud_ins)
+	begin 
+		raiserror('Muc luong cua giao vien chua hop ly', 16, 1);
+		rollback;
+	end
+end;
+
+-- muc luong cua PTS va GS la: 2250000
+insert into GIAOVIEN(MAGV, HOTEN, HOCVI, HOCHAM, GIOITINH, NGSINH, NGVL, HESO, MUCLUONG, MAKHOA)
+values
+('GV16', 'Ho Thanh Son', 'PTS', 'GS', 'Nam', '2/5/1950', '11/1/2004', 5.00, 2260000, 'KHMT');
+
+delete from GIAOVIEN where MAGV = 'GV16';
+
+-- 12
+create trigger ketqua_thilai_insert on KETQUATHI after insert
+as
+begin
+	declare @mahv varchar(10), @mamh varchar(10), @solanthi int, @diem float;
+
+	select @mahv = MAHV, @mamh = MAMH from inserted;
+
+	set @solanthi = (select LANTHI - 1 from inserted);
+
+	set @diem = (select KETQUATHI.DIEM from KETQUATHI
+	where KETQUATHI.MAMH = @mamh and KETQUATHI.MAHV = @mahv and KETQUATHI.LANTHI = @solanthi);
+
+	if (@diem >= 5)
+	begin 
+		raiserror('Thong tin thi lai khong hop le', 16, 1);
+		rollback;
+	end
+end;
+
+drop trigger ketqua_thilai_insert;
+
+insert into KETQUATHI
+values
+('K1305', 'CTRR', 2, '13/05/2006', 10.00, 'Dat');
+
+delete from KETQUATHI where  MAHV = 'K1305' and MAMH = 'CTRR' and LANTHI = 2;
+
+select * from KETQUATHI;
+
+-- 13
+create trigger ketqua_ngaythi_insert on KETQUATHI after insert
+as
+begin
+	declare @mahv varchar(10), @mamh varchar(10), @ngaythitruoc date, @ngaythihientai date, @solanthitruoc int;
+
+	select @mahv = MAHV, @mamh = MAMH, @solanthitruoc = LANTHI - 1, @ngaythihientai = NGTHI from inserted;
+
+	select @ngaythitruoc = NGTHI from KETQUATHI where MAHV = @mahv and MAMH = @mamh and LANTHI = @solanthitruoc;
+
+	if (@ngaythihientai <= @ngaythitruoc)
+	begin 
+		raiserror('Ngay thi hien tai phai lon hon  ngay thi truoc', 16, 1);
+		rollback;
+	end
+end;
+
+insert into KETQUATHI
+values
+('K1303', 'THDC', 2, '20/05/2005', 4.50, 'Khong Dat');
+
+-- 14
+create trigger giangday_khoaphutrach_insert_update on GIANGDAY after insert, update
+as
+begin
+	declare @magv varchar(10), @makhoa varchar(10), @mamh varchar(10);
+
+	select @magv = MAGV, @mamh = MAMH from inserted;
+
+	set @makhoa = (select MAKHOA from GIAOVIEN where MAGV = @magv);
+
+	if exists (select @mamh from MONHOC where MAKHOA = @makhoa)
+	begin
+		raiserror('Mon hoc khong thuoc khoa cua GV phu trach', 16, 1);
+		rollback;
+	end
+end;
+
+-- NMCNPM thuoc KHOA CNPM, GV06 thuoc KHOA CTMT
+insert into GIANGDAY(MALOP, MAMH, MAGV, HOCKY, NAM, TUNGAY, DENNGAY)
+values
+('K12', 'NMCNPM', 'GV06', 2, 2006, '2/1/2006', '12/5/2006');
