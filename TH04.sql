@@ -209,3 +209,113 @@ end;
 exec insert_thanh_toan '2023-10-20', 'CT hoá đơn 01', 1, 670000;
 
 -- 2.
+-- Mat Hang
+create proc delete_mathang @ma_mh int
+as 
+begin
+	delete from CTDonHang where MaMH = @ma_mh;
+	delete from CTNhanHang where MaMH = @ma_mh;
+	delete from CTXuat where MaMH = @ma_mh;
+	delete from MatHang where MaMH = @ma_mh;
+end;
+
+exec delete_mathang 1;
+select * from MatHang;
+
+drop proc delete_mathang;
+
+-- Don Hang
+
+create proc delete_donhang @so_dh int
+as begin
+	set @so_dh = (select top(1) SoPNH from NhanHang where SoDH = @so_dh);
+
+	delete from NhanHang where SoDH = @so_dh;
+	delete from CTDonHang where SoDH = @so_dh;
+end;
+
+
+-- Nha CC
+
+create proc delete_nhacc @mancc int
+as begin
+	declare @ma_dh int, @so_pnh int;
+	set @ma_dh = (select top(1) SoDH from DonHang where MaNCC = @mancc);
+
+	set @so_pnh = (select top(1) SoPNH from NhanHang where SoDH = @ma_dh);
+
+	exec dbo.delete_donhang @ma_dh;
+
+	delete from NhaCC where MaNCC = @mancc;
+end;
+
+-- CT Don Hang
+create proc delete_ct_donhang @so_dh int
+as begin
+	delete from CTDonHang where SoDH = @so_dh;
+end;
+
+
+-- CT Nhan Hang
+
+create proc delete_ct_nhanhang @so_pnh int
+as begin
+	delete from CTNhanHang where SoPNH = @so_pnh;
+end;
+
+-- Nhan Hang
+
+create proc delete_nhanhang @so_pnh int
+as begin
+	exec dbo.delete_ct_nhanhang @so_pnh;
+	delete from NhanHang where SoPNH = @so_pnh;
+end;
+
+
+-- CT Xuat
+create proc delete_ct_xuat @so_px int
+as begin
+	delete from CTXuat where SoPX = @so_px;
+end;
+
+
+-- Phieu Xuat
+
+create proc delete_phieuxuat @so_px int
+as begin
+	exec dbo.delete_ct_xuat @so_px;
+	delete from PhieuXuat where SoPX = @so_px;
+end;
+
+
+-- Thanh Toan 
+
+create proc delete_thanhtoan @so_ct int
+as begin
+	delete from ThanhToan where SoCT = @so_ct;
+end;
+
+-- 3.
+create proc update_ct_donhang @so_dh int, @ma_mh int, @sl_dat int
+as begin
+	update CTDonHang
+	set SLDat = @sl_dat
+	where SoDH = @so_dh and MaMH = @ma_mh;
+end;
+
+-- 4. 
+create proc list_ct_donhang @so_dh int
+as begin
+	select MatHang.MaMH, MatHang.TenMH, CTDonHang.SLDat
+	from MatHang inner join CTDonHang on MatHang.MaMH = CTDonHang.MaMH
+	where CTDonHang.SoDH = @so_dh;
+end;
+
+-- 5.
+create proc list_nhanhang @begin_date date, @end_date date
+as begin
+	select CTNhanHang.MaMH, sum(CTNhanHang.MaMH)
+	from CTNhanHang inner join NhanHang on NhanHang.SoPNH = CTNhanHang.SoPNH
+	where NgayNH > @begin_date and NgayNH < @end_date
+	group by CTNhanHang.MaMH;
+end;
