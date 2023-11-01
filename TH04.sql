@@ -319,3 +319,118 @@ as begin
 	where NgayNH > @begin_date and NgayNH < @end_date
 	group by CTNhanHang.MaMH;
 end;
+
+exec list_nhanhang '2023-01-01', '2023-12-12';
+
+
+-- TRIGGERS
+-- 1.a
+go
+create trigger ct_donhang_insert on CTDonHang after insert
+as 
+begin
+	declare @tri_gia float, @so_dh int;
+	select @tri_gia = (inserted.SLDat * inserted.DonGia), @so_dh = inserted.SoDH
+	from inserted;
+
+	update DonHang set TriGia = TriGia + @tri_gia where SoDH = @so_dh;
+end;
+
+insert into CTDonHang values(1, 2, 10, 6500);
+
+select * from CTDonHang;
+select * from DonHang;
+select * from MatHang;
+
+-- 1.b
+go
+create trigger ct_donhang_deleted on CTDonHang after delete
+as 
+begin
+	declare @tri_gia float, @so_dh int;
+	select @tri_gia = (deleted.SLDat * deleted.DonGia), @so_dh = deleted.SoDH
+	from deleted;
+	print(@tri_gia);
+
+	update DonHang set TriGia = TriGia - @tri_gia where SoDH = @so_dh;
+end;
+
+drop trigger dbo.ct_donhang_deleted;
+delete from CTDonHang where CTDonHang.SoDH = 1;
+select * from DonHang;
+select * from CTDonHang;
+-- 1.c
+go
+create trigger ct_donhang_update on CTDonHang after update
+as 
+begin
+	declare @tri_gia float, @so_dh int;
+	set @so_dh = (select SoDH from inserted);
+	set @tri_gia = (select (inserted.DonGia * inserted.SLDat) - (deleted.DonGia * deleted.SLDat) from inserted inner join deleted on inserted.SoDH = deleted.SoDH and inserted.MaMH = deleted.MaMH);
+	print(@tri_gia);
+	-- select * from inserted inner join deleted on inserted.SoDH = deleted.SoDH and inserted.MaMH = deleted.MaMH;
+
+	update DonHang set TriGia = TriGia + @tri_gia where SoDH = @so_dh;
+end;
+
+drop trigger ct_donhang_update;
+update CTDonHang set SLDat = 6 where SoDH = 1 and MaMH = 2;
+
+select *  from DonHang;
+
+
+-- 2.a
+go
+create trigger ct_nhanhang_insert on CTNhanHang after insert
+as
+begin
+	declare @so_dh int, @ma_mh int, @sl_giao int, @sl_mathang int, @ngay_dat date, @is_error int = 0;
+
+	select @so_dh = NhanHang.SoDH, @sl_giao = inserted.SLNhan, @ma_mh = inserted.MaMH from NhanHang inner join inserted on NhanHang.SoPNH = inserted.SoPNH;
+
+	if not exists (select * from CTDonHang inner join NhanHang on CTDonHang.SoDH = NhanHang.SoDH
+	inner join inserted on NhanHang.SoPNH = inserted.SoPNH
+	where CTDonHang.MaMH = @ma_mh)
+	begin
+		raiserror('Ma mat hang khong ton tai trong don hang', 16, 1);
+		set @is_error = 1;
+		rollback;
+	end;
+
+	if (@sl_giao > (select CTDonHang.SLDat from CTDonHang where SoDH = @so_dh and MaMH = @ma_mh))
+	begin
+		raiserror('So luong giao phai nho hon hoac bang so luong dat', 16, 1);
+		set @is_error = 1;
+		rollback;
+	end;
+
+	set @sl_mathang = (select count(inserted.MaMH) from inserted inner join NhanHang on inserted.SoPNH = NhanHang.SoPNH 
+	inner join DonHang on NhanHang.SoDH = DonHang.SoDH
+	group by DonHang.SoDH);
+
+	if (@sl_mathang > 10)
+	begin
+		raiserror('So luong mat hang trong mot don hang khong duoc lon hon 10', 16, 1);
+		set @is_error = 1;
+		rollback;
+	end;
+
+	set @ngay_dat = (select NgayDH from DonHang where SoDH = @so_dh);
+	
+	if (@ngay_dat > (select NhanHang.NgayNH from inserted inner join NhanHang on inserted.SoPNH = NhanHang.SoPNH))
+	begin
+		raiserror('Ngay dat phai nho hon hoac bang ngay giao', 16, 1);
+		set @is_error = 1;
+		rollback;
+	end;
+
+	if (@is_error = 0)
+	begin 
+		update MatHang set SLNhap = SLNhap + @sl_giao where MaMH = @ma_mh;
+	end;
+
+end;
+
+drop trigger ct_nhanhang_insert;
+insert into CTNhanHang values (1, 2, 4);
+insert into CTNhanHang values (1, 3, 4);
