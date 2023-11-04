@@ -55,15 +55,9 @@ INSERT INTO public.genre (genre_id, genre_name) VALUES ('vientuong', 'Viễn tư
 INSERT INTO public.genre (genre_id, genre_name) VALUES ('hanhdong', 'Hành động');
 
 -- Room
-INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seat_data) VALUES ('1', 'R001', '1', 7, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000');
-INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seat_data) VALUES ('2', 'R002', '1', 8, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000');
-INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seat_data) VALUES ('3', 'R003', '1', 9, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000');
-
--- Show time
-INSERT INTO public.showtime (showtime_id, film_id, room_id, showtime_date) VALUES ('1', '8', '1', '2023-10-29 04:00:00.000000');
-INSERT INTO public.showtime (showtime_id, film_id, room_id, showtime_date) VALUES ('2', '8', '1', '2023-10-30 20:54:00.000000');
-INSERT INTO public.showtime (showtime_id, film_id, room_id, showtime_date) VALUES ('3', '2', '2', '2023-10-31 14:14:00.000000');
-INSERT INTO public.showtime (showtime_id, film_id, room_id, showtime_date) VALUES ('4', '4', '3', '2023-11-01 05:14:00.000000');
+INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seats_data) VALUES ('1', 'R001', '1', 7, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000');
+INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seats_data) VALUES ('2', 'R002', '1', 8, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000');
+INSERT INTO public.room (room_id, room_name, theater_id, seat_rows, seat_cols, seats_data) VALUES ('3', 'R003', '1', 9, 9, '000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000 000000000');
 
 -- Theater
 INSERT INTO public.theater (theater_id, theater_name, tax_code, theater_address) VALUES ('1', 'FilmBooking Thủ Đức', '000000001', '1 Võ Văn Ngân, Linh Chiểu, Thủ Đức');
